@@ -1,5 +1,9 @@
 # Marisol Heat — Neon Harbor
 
+[![make.fun · gta6-01](https://make.fun/badge/gta6-01.svg)](https://make.fun/bounty/gta6-01?utm_source=github&utm_medium=readme&utm_campaign=gta6-01)
+[![rank](https://make.fun/badge/gta6-01/yuyan5319-crypto/makefun-gta6-01/rank.svg)](https://make.fun/bounty/gta6-01/leaderboard?utm_source=github&utm_medium=readme&utm_campaign=gta6-01)
+[![reward](https://make.fun/badge/gta6-01/yuyan5319-crypto/makefun-gta6-01/reward.svg)](https://make.fun/bounty/gta6-01?utm_source=github&utm_medium=readme&utm_campaign=gta6-01)
+
 An original open-world crime game for the make.fun `gta6-01` bounty ("Make
 GTA 6"), built from scratch as plain static files — no build step, no
 network, no libraries. Open `game/index.html` in a desktop browser (or run
