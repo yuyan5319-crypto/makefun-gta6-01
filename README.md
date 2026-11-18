@@ -57,6 +57,38 @@ while the harbour patrol does its best to end her career early.
 | Enter | Confirm / start |
 | N | New game (on the title screen) |
 
+## Screenshots
+
+Real renders of the game, captured in play (see `screenshots/`):
+
+- `screenshots/1-title.jpg` — the animated title screen: "MARISOL HEAT —
+  NEON HARBOR" over the night city, with the "Press ENTER to start" prompt,
+  a controls summary and Marisol's starting stats (0/5 jobs, $0, 0 cars
+  stolen).
+
+  ![Title screen](screenshots/1-title.jpg)
+
+- `screenshots/2-mission.jpg` — the first job, "First Fare": Marisol on
+  foot in Neon Mile, following the marker to pick up the envelope at the
+  Neon Mile kiosk, with the objective line, cash display and live minimap
+  in the HUD.
+
+  ![First mission](screenshots/2-mission.jpg)
+
+- `screenshots/3-chase.jpg` — a three-star police chase in Downtown Lumen:
+  "The harbour patrol is hunting you!" as patrol cars close in on Marisol's
+  car while the wanted stars burn in the corner of the HUD.
+
+  ![Police chase](screenshots/3-chase.jpg)
+
+- `screenshots/4-pier.jpg` — the final job, "The Last Run": driving the
+  crate down the pier at Marina Beach against a 1:13 timer, with the sea on
+  both sides and the finish marker at the end of the pier.
+
+  ![Final mission on the pier](screenshots/4-pier.jpg)
+
+The game needs only a desktop browser — no build step and no network.
+
 ## Layout
 
 - `main.ts` — the hand-in program: copies `game/` and `screenshots/` to the
