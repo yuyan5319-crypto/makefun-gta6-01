@@ -12,7 +12,9 @@ import {
   makePed, nearestCar, carRect, updateTraffic, updatePed, updatePoliceCar,
   updateCop, spawnPoliceCar, spawnCop,
 } from './entities.js';
-import { MISSIONS, pickupSpots } from './missions.js';
+import { MISSIONS, pickupSpots, REP_LEVELS, repLevelFor, collectibleSpots } from './missions.js';
+import { buildSideJob } from './sidejobs.js';
+import { buildRandomEvent } from './events.js';
 import { freshSave } from './save.js';
 
 export const SCREEN = { TITLE: 'title', PLAY: 'play', PAUSED: 'paused', BUSTED: 'busted', WASTED: 'wasted', COMPLETE: 'complete' };
@@ -45,6 +47,13 @@ export function createGame(city, save) {
     storyDone: data.storyDone,
     mission: null,                    // active mission runtime
     missionOffer: null,               // mission waiting at its start marker
+    sideJob: null,                    // active repeatable side job (J to take one)
+    randomEvent: null,                // active street event (cash drop / race / raid)
+    eventTimer: 45,                   // seconds until the next street event
+    rep: data.rep ?? 0,               // reputation points (REP_LEVELS)
+    tags: collectibleSpots().map((p, i) => ({ ...p, taken: (data.tagsTaken || []).includes(i), index: i })),
+    bestTrial: data.bestTrial ?? null,
+    skidT: 0,                         // throttle for tyre-screech sounds
     dialogue: null, dialogueT: 0,
     message: '', messageT: 0,
     pickups: pickupSpots().map((p) => ({ ...p, taken: false, respawn: 0 })),
@@ -72,6 +81,24 @@ export function notify(game, text, seconds = 3) {
 export function say(game, lines) {
   game.dialogue = [...lines];
   game.dialogueT = 3.4;
+}
+
+/** The reputation level index for the game's current points. */
+export function repLevel(game) { return repLevelFor(game.rep); }
+
+/** Add reputation points; a level-up pays a small bonus and celebrates. */
+export function addRep(game, n) {
+  const before = repLevel(game);
+  game.rep += n;
+  const after = repLevel(game);
+  if (after > before) {
+    const bonus = 50 * after;
+    game.money += bonus;
+    game.stats.earned += bonus;
+    emit(game, 'levelup');
+    notify(game, `Reputation up — ${REP_LEVELS[after].name}! Bonus $${bonus}`, 4);
+    floater(game, game.player.x, game.player.y - 34, `${REP_LEVELS[after].name}!`, '#facc15');
+  }
 }
 
 /** Commit a crime: raise wanted heat; witnesses decide if stars follow. */
@@ -142,14 +169,14 @@ export function startMission(game, index) {
   };
   const stage = def.stages[0];
   if (stage.kind === 'trial') game.mission.timer = stage.time;
-  if (stage.kind === 'steal') markTargetCar(game, stage);
+  if (stage.kind === 'steal') markTargetCar(game, stage, game.mission);
   say(game, def.brief);
   notify(game, `Mission: ${def.title}`, 3.5);
   emit(game, 'missionStart');
 }
 
 /** Find (or respawn) the highlighted steal-target car for a stage. */
-function markTargetCar(game, stage) {
+function markTargetCar(game, stage, runtime) {
   let best = null; let bestD = Infinity;
   for (const car of game.cars) {
     if (car.kind !== 'parked' || car.dead) continue;
@@ -159,7 +186,201 @@ function markTargetCar(game, stage) {
   if (best) {
     best.color = '#e11d48'; // the vermilion coupe
     best.x = stage.x; best.y = stage.y;
-    game.mission.targetCarId = best.id;
+    runtime.targetCarId = best.id;
+  }
+}
+
+/** Take a repeatable side job (taxi, courier or repo) from Dee's phone. */
+export function startSideJob(game) {
+  if (game.mission || game.sideJob || game.screen !== SCREEN.PLAY) return false;
+  const def = buildSideJob(game.rng, game.player.x, game.player.y);
+  game.sideJob = { def, stage: 0, timer: def.timer, checkpoint: 0, targetCarId: null };
+  if (def.stages[0].kind === 'steal') markTargetCar(game, def.stages[0], game.sideJob);
+  notify(game, `Side job: ${def.title} — $${def.reward}`, 3.5);
+  emit(game, 'eventStart');
+  return true;
+}
+
+/** The current side-job stage, or null. */
+export function currentSideStage(game) {
+  if (!game.sideJob) return null;
+  return game.sideJob.def.stages[game.sideJob.stage];
+}
+
+/** Complete the active side job: pay out, add reputation, persist. */
+function completeSideJob(game) {
+  const job = game.sideJob;
+  game.money += job.def.reward;
+  game.stats.earned += job.def.reward;
+  game.stats.sideJobsDone++;
+  floater(game, game.player.x, game.player.y - 30, `+$${job.def.reward}`, '#facc15');
+  emit(game, 'cash');
+  emit(game, 'sideDone');
+  notify(game, `Side job done — ${job.def.title}`, 3.5);
+  game.sideJob = null;
+  addRep(game, 40);
+  syncSave(game);
+}
+
+/** Fail the active side job; another is a keypress away. */
+function failSideJob(game, reason) {
+  notify(game, `Side job failed: ${reason}`, 3.5);
+  emit(game, 'missionFail');
+  game.sideJob = null;
+}
+
+/** Side-job stage logic: the same stage kinds story missions use. */
+function updateSideJob(game, dt, input) {
+  if (input.justPressed('j') && !game.mission && !game.sideJob) startSideJob(game);
+  const job = game.sideJob;
+  if (!job) return;
+  job.timer -= dt;
+  if (job.timer <= 0) { failSideJob(game, 'the clock ran out'); return; }
+  const stage = job.def.stages[job.stage];
+  const p = game.player;
+  if (stage.kind === 'goto') {
+    const okVehicle = stage.anyVehicle || !stage.needVehicle || !!p.car;
+    if (dist(p.x, p.y, stage.x, stage.y) < stage.r && okVehicle) {
+      job.stage++;
+      if (job.stage >= job.def.stages.length) { completeSideJob(game); return; }
+      const next = job.def.stages[job.stage];
+      if (next.kind === 'steal') markTargetCar(game, next, job);
+      emit(game, 'pickup');
+      notify(game, 'Objective updated', 2);
+    }
+  } else if (stage.kind === 'steal') {
+    if (job.targetCarId && p.car && p.car.id === job.targetCarId) {
+      job.stage++;
+      emit(game, 'pickup');
+      notify(game, 'Objective updated', 2);
+    }
+  }
+}
+
+/** Start a random street event near the player. */
+export function startRandomEvent(game) {
+  if (game.mission || game.sideJob || game.randomEvent) return false;
+  const def = buildRandomEvent(game.rng, game.player.x, game.player.y);
+  game.randomEvent = { def, t: def.duration, checkpoint: 0 };
+  if (def.type === 'raid') {
+    commitCrime(game, 52, game.player.x, game.player.y);
+    // A raid is a raid even on an empty street: force the heat if nobody
+    // witnessed it, so the event always plays as advertised.
+    if (game.wanted === 0) {
+      game.wantedHeat = 52;
+      game.wanted = 2;
+      game.hideTimer = 0;
+      emit(game, 'star');
+      notify(game, 'The harbour patrol is hunting you!', 2);
+    }
+  }
+  notify(game, `Street event: ${def.title} — $${def.reward}`, 4);
+  emit(game, 'eventStart');
+  return true;
+}
+
+/** The current event target point (or checkpoint), for the HUD and minimap. */
+export function currentEventTarget(game) {
+  const ev = game.randomEvent;
+  if (!ev) return null;
+  if (ev.def.type === 'streetrace') return ev.def.checkpoints[ev.checkpoint];
+  return ev.def.target;
+}
+
+/** Street-event logic: cash crate, checkpoint race, or surviving a raid. */
+function updateRandomEvent(game, dt) {
+  const ev = game.randomEvent;
+  if (!ev) {
+    // Event director: a quiet minute, then the city throws something.
+    game.eventTimer -= dt;
+    if (game.eventTimer <= 0) {
+      game.eventTimer = 55 + game.rng() * 35;
+      startRandomEvent(game);
+    }
+    return;
+  }
+  ev.t -= dt;
+  const p = game.player;
+  if (ev.def.type === 'cashdrop') {
+    if (dist(p.x, p.y, ev.def.target.x, ev.def.target.y) < ev.def.target.r) {
+      game.money += ev.def.reward;
+      game.stats.earned += ev.def.reward;
+      game.stats.eventsDone++;
+      floater(game, p.x, p.y - 30, `+$${ev.def.reward}`, '#facc15');
+      emit(game, 'cash');
+      notify(game, 'Cash crate grabbed!', 3);
+      game.randomEvent = null;
+      addRep(game, 30);
+      syncSave(game);
+      return;
+    }
+  } else if (ev.def.type === 'streetrace') {
+    const pt = ev.def.checkpoints[ev.checkpoint];
+    if (pt && dist(p.x, p.y, pt.x, pt.y) < ev.def.target.r) {
+      ev.checkpoint++;
+      emit(game, 'raceCheckpoint');
+      floater(game, pt.x, pt.y, `Checkpoint ${ev.checkpoint}/${ev.def.checkpoints.length}`, '#fb923c');
+      if (ev.checkpoint >= ev.def.checkpoints.length) {
+        game.money += ev.def.reward;
+        game.stats.earned += ev.def.reward;
+        game.stats.eventsDone++;
+        emit(game, 'cash');
+        notify(game, `Race won — $${ev.def.reward}!`, 3.5);
+        game.randomEvent = null;
+        addRep(game, 30);
+        syncSave(game);
+        return;
+      }
+    }
+  } else if (ev.def.type === 'raid') {
+    if (game.wanted === 0 && ev.t < ev.def.duration - 3) {
+      // Shook the raid off early: still counts, smaller fuss.
+      game.stats.eventsDone++;
+      notify(game, 'Raid dodged — the patrol lost you', 3);
+      game.randomEvent = null;
+      addRep(game, 30);
+      syncSave(game);
+      return;
+    }
+  }
+  if (ev.t <= 0) {
+    if (ev.def.type === 'raid') {
+      game.money += ev.def.reward;
+      game.stats.earned += ev.def.reward;
+      game.stats.eventsDone++;
+      notify(game, `Survived the raid — $${ev.def.reward}`, 3.5);
+      addRep(game, 30);
+      syncSave(game);
+    } else {
+      notify(game, `${ev.def.title} is over — too slow`, 3);
+    }
+    game.randomEvent = null;
+  }
+}
+
+/** Neon tags: glowing collectibles hidden around the city. */
+function updateCollectibles(game) {
+  const p = game.player;
+  for (const tag of game.tags) {
+    if (tag.taken) continue;
+    if (dist(p.x, p.y, tag.x, tag.y) < 26) {
+      tag.taken = true;
+      game.stats.tagsFound++;
+      game.money += 25;
+      game.stats.earned += 25;
+      floater(game, tag.x, tag.y - 16, '+$25 tag', '#e879f9');
+      emit(game, 'tag');
+      addRep(game, 10);
+      if (game.tags.every((t) => t.taken)) {
+        game.money += 500;
+        game.stats.earned += 500;
+        notify(game, 'All 12 neon tags! Bonus $500 — Neon Royalty material', 4);
+        addRep(game, 100);
+      } else {
+        notify(game, `Neon tag ${game.stats.tagsFound}/12`, 2);
+      }
+      syncSave(game);
+    }
   }
 }
 
@@ -176,6 +397,7 @@ function completeMission(game) {
   game.mission = null;
   game.missionIndex = m.index + 1;
   if (game.missionIndex >= MISSIONS.length) game.storyDone = true;
+  addRep(game, 100);
   syncSave(game);
 }
 
@@ -200,6 +422,9 @@ export function syncSave(game) {
   game.save.storyDone = game.storyDone;
   game.save.x = Math.round(game.player.x);
   game.save.y = Math.round(game.player.y);
+  game.save.rep = game.rep;
+  game.save.tagsTaken = game.tags.filter((t) => t.taken).map((t) => t.index);
+  game.save.bestTrial = game.bestTrial;
   game.save.stats = { ...game.stats };
 }
 
@@ -220,6 +445,9 @@ function moveOnFoot(game, dt, input) {
   if (!collides(game.city, { x: nx - 7, y: p.y - 7, w: 14, h: 14 })) p.x = nx;
   const ny = p.y + my * speed * dt;
   if (!collides(game.city, { x: p.x - 7, y: ny - 7, w: 14, h: 14 })) p.y = ny;
+  // Remember the walk velocity: the camera leans into it (see cameraTarget).
+  p.vx = mx * speed;
+  p.vy = my * speed;
   p.x = clamp(p.x, 10, WORLD_W - 10);
   p.y = clamp(p.y, 10, WORLD_H - 10);
   if (inWater(p.x, p.y) && !onPier(game.city, p.x, p.y)) {
@@ -248,6 +476,21 @@ function driveCar(game, dt, input) {
   }
   if (input.held(' ')) { // handbrake
     car.speed -= Math.sign(car.speed) * Math.min(Math.abs(car.speed), 520 * dt);
+    // Drifting on the handbrake: skid marks, smoke and a screech.
+    if (Math.abs(car.speed) > 120) {
+      game.skidT -= dt;
+      const bx = car.x - Math.cos(car.angle) * 18;
+      const by = car.y - Math.sin(car.angle) * 18;
+      game.particles.push({
+        x: bx, y: by, vx: 0, vy: 0, life: 0.9, maxLife: 0.9,
+        color: '#27272a', size: 7,
+      });
+      if (game.skidT <= 0) { game.skidT = 0.45; emit(game, 'screech'); }
+    }
+  }
+  // A seasoned wheelwoman keeps her ride patched: slow self-repair.
+  if (repLevel(game) >= 2 && car.health < 100 && Math.abs(car.speed) < 40) {
+    car.health = Math.min(100, car.health + 1.5 * dt);
   }
   const nx = car.x + Math.cos(car.angle) * car.speed * dt;
   const ny = car.y + Math.sin(car.angle) * car.speed * dt;
@@ -396,10 +639,12 @@ function updateBullets(game, dt) {
     b.x += b.vx * dt; b.y += b.vy * dt; b.life -= dt;
     if (collides(game.city, { x: b.x - 2, y: b.y - 2, w: 4, h: 4 })) { b.life = 0; burst(game, b.x, b.y, '#fde68a', 3, 60); continue; }
     if (b.from === 'player') {
+      // A Harbor Legend's pistol hits harder than a courier's.
+      const dmg = 40 + (repLevel(game) >= 3 ? 15 : 0);
       for (const ped of game.peds) {
         if (ped.dead || b.life <= 0) continue;
         if (dist(b.x, b.y, ped.x, ped.y) < 10) {
-          ped.health -= 40; b.life = 0;
+          ped.health -= dmg; b.life = 0;
           burst(game, ped.x, ped.y, '#ef4444', 7, 100);
           commitCrime(game, ped.kind === 'cop' ? 34 : 24, ped.x, ped.y);
           if (ped.health <= 0) ped.dead = true;
@@ -507,12 +752,18 @@ export function currentStage(game) {
 export function advanceStage(game) {
   const m = game.mission;
   if (!m) return;
+  // Remember the best Harbour Trial clock (time left when it was cleared).
+  const done = m.def.stages[m.stage];
+  if (done && done.kind === 'trial' && m.timer !== null) {
+    const left = Math.round(m.timer * 10) / 10;
+    if (game.bestTrial === null || left > game.bestTrial) game.bestTrial = left;
+  }
   m.stage++;
   m.checkpoint = 0;
   if (m.stage >= m.def.stages.length) { completeMission(game); return; }
   const stage = m.def.stages[m.stage];
   m.timer = stage.kind === 'trial' || stage.kind === 'deliver' ? stage.time : null;
-  if (stage.kind === 'steal') markTargetCar(game, stage);
+  if (stage.kind === 'steal') markTargetCar(game, stage, m);
   if (stage.heat) commitCrime(game, stage.heat * 26, game.player.x, game.player.y);
   emit(game, 'pickup');
   notify(game, 'Objective updated', 2);
@@ -554,7 +805,11 @@ function updateMission(game, dt) {
     if (game.mission && game.mission.timer <= 0) failMission(game, 'the clock ran out');
   } else if (stage.kind === 'deliver') {
     game.mission.timer -= dt;
-    if (p.car && dist(p.x, p.y, stage.x, stage.y) < stage.r) { advanceStage(game); return; }
+    const okCalm = !stage.needCalm || game.wanted === 0;
+    if (p.car && dist(p.x, p.y, stage.x, stage.y) < stage.r && okCalm) { advanceStage(game); return; }
+    if (p.car && dist(p.x, p.y, stage.x, stage.y) < stage.r && stage.needCalm && game.wanted > 0) {
+      notify(game, 'Lose the patrol before you roll onto the pier!', 1.2);
+    }
     if (game.mission && game.mission.timer <= 0) failMission(game, 'the ferry window closed');
   }
 }
@@ -610,7 +865,7 @@ export function stepGame(game, dt, input, view) {
   for (const car of game.cars) {
     if (car.dead || car === p.car) continue;
     if (car.kind === 'traffic') updateTraffic(car, dt, game.city, game.cars, game.peds, p.car ? null : p);
-    else if (car.kind === 'police') updatePoliceCar(car, dt, game.city, p);
+    else if (car.kind === 'police') updatePoliceCar(car, dt, game.city, p, game.wanted);
   }
   for (const ped of game.peds) {
     if (ped.dead) continue;
@@ -621,6 +876,9 @@ export function stepGame(game, dt, input, view) {
   wantedDecay(game, dt);
   updateBullets(game, dt);
   updateMission(game, dt);
+  updateSideJob(game, dt, input);
+  updateRandomEvent(game, dt);
+  updateCollectibles(game);
   updatePickups(game, dt);
   // Particles and floaters.
   for (const pt of game.particles) {
@@ -638,9 +896,19 @@ export function stepGame(game, dt, input, view) {
   if (game.autosaveT > 5) { game.autosaveT = 0; syncSave(game); emit(game, 'autosave'); }
 }
 
-/** Where the camera should centre: the player (or her car). */
+/** Where the camera should centre: the player (or her car), leaning ahead
+ *  into motion so fast driving reads before the car arrives there. */
 export function cameraTarget(game) {
-  return { x: game.player.x, y: game.player.y };
+  const p = game.player;
+  const look = 0.32;
+  let lx = 0, ly = 0;
+  if (p.car) {
+    lx = Math.cos(p.car.angle) * p.car.speed * look;
+    ly = Math.sin(p.car.angle) * p.car.speed * look;
+  } else {
+    lx = p.vx * look; ly = p.vy * look;
+  }
+  return { x: p.x + lx, y: p.y + ly };
 }
 
 /** Current district name for the HUD. */

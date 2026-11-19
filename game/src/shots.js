@@ -2,10 +2,11 @@
 // Each scene builds the real game, fast-forwards the real simulation with a
 // simple scripted driver, and freezes a frame that shows the game's systems
 // honestly: the title over the city, a mission pickup downtown, a police
-// chase with the wanted stars lit, and Marisol on foot at the beach pier.
-// The same seed and script always produce the same frame.
+// chase with the wanted stars lit, Marisol on foot at the beach pier, and a
+// side job with a street event running beside it. The same seed and script
+// always produce the same frame.
 
-import { createGame, stepGame, startMission, commitCrime, SCREEN } from './game.js';
+import { createGame, stepGame, startMission, startSideJob, startRandomEvent, commitCrime, SCREEN } from './game.js';
 import { spawnAmbient } from './entities.js';
 import { avenueX, streetY, WORLD_W, WATER_Y } from './world.js';
 
@@ -50,10 +51,28 @@ function baseGame(city, save) {
 
 /**
  * Stage the named scene and return the game to draw. Names: title, mission,
- * chase, pier. Anything else is the title.
+ * chase, pier, side. Anything else is the title.
  */
 export function stageShot(name, city) {
   const input = scriptedInput({});
+  if (name === 'side') {
+    // Side work in progress: a taxi fare active, a cash-drop event live,
+    // a neon tag glowing nearby, and Marisol's reputation on the HUD.
+    const game = baseGame(city);
+    game.player.x = avenueX(7) + 8;
+    game.player.y = streetY(4) + 60;
+    game.rep = 420;
+    game.money = 860;
+    // Event first: starting a side job afterwards is allowed, not vice versa.
+    startRandomEvent(game);
+    startSideJob(game);
+    game.dialogue = null;
+    run(game, input, 1.2, ['w']);
+    run(game, input, 0.8, ['w', 'd']);
+    game.message = 'Side job + street event — the harbour never sleeps';
+    game.messageT = 5;
+    return game;
+  }
   if (name === 'mission') {
     const game = baseGame(city);
     game.player.x = avenueX(6) + 8;

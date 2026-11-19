@@ -3,16 +3,24 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Marisol Heat — Neon Harbor: an original open-world crime game. Explore a neon harbour city on foot and by car, run story jobs and side work, dodge the harbour patrol, and collect twelve neon tags.">
+<meta name="theme-color" content="#0b0614">
 <title>Marisol Heat — Neon Harbor</title>
 <style>
+  /* Marisol Heat loads as one full-screen canvas; everything else is drawn
+     on it by game/src/render.js, so the page itself stays tiny. */
   html, body { margin: 0; height: 100%; overflow: hidden; background: #0b0614; }
   #game { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: crosshair; }
   #status { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .noscript { color: #f8fafc; font: 16px system-ui, sans-serif; padding: 2rem; text-align: center; }
 </style>
 </head>
 <body>
 <canvas id="game" aria-label="Marisol Heat — Neon Harbor: explore the harbor city on foot and by car"></canvas>
 <p id="status" role="status" aria-live="polite"></p>
+<noscript><p class="noscript">Marisol Heat needs JavaScript to run: open this page in a desktop browser with JavaScript on.</p></noscript>
+<!-- The whole game is ES modules under game/src/, loaded offline: no CDN,
+     no fonts, no images and no network requests of any kind. -->
 <script type="module" src="./src/main.js"></script>
 </body>
 </html>

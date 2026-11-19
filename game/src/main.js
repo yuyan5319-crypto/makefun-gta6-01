@@ -2,6 +2,8 @@
 // It builds the city, loads the save, runs the simulation from game.js at
 // 60 steps a second, renders with render.js, turns simulation events into
 // WebAudio sounds, and handles the title / pause / busted / wasted flow.
+// The camera is smoothed (an exponential follow toward the lookahead
+// target game.js computes), so fast driving feels steady instead of jittery.
 // With ?shot=<name> it instead stages one deterministic screenshot scene.
 
 import { buildCity } from './world.js';
@@ -62,6 +64,8 @@ function bootLive() {
   let last = performance.now();
   let acc = 0;
   const STEP = 1 / 60;
+  // Smoothed camera: exponential follow toward the lookahead target.
+  let smoothCam = cameraTarget(game);
 
   function frame(now) {
     requestAnimationFrame(frame);
@@ -83,8 +87,16 @@ function bootLive() {
       drainEvents();
       input.endFrame();
     }
-    const camNow = cameraTarget(game);
-    render(ctx, game, canvas.width, canvas.height, camNow, locationName(game));
+    // Ease the camera toward the target: fast when far, gentle when close.
+    const target = cameraTarget(game);
+    const k = 1 - Math.exp(-9 * dt);
+    smoothCam = {
+      x: smoothCam.x + (target.x - smoothCam.x) * k,
+      y: smoothCam.y + (target.y - smoothCam.y) * k,
+    };
+    // Snap on a big jump (revive, teleport) so the view never chases ghosts.
+    if (Math.hypot(target.x - smoothCam.x, target.y - smoothCam.y) > 420) smoothCam = { ...target };
+    render(ctx, game, canvas.width, canvas.height, smoothCam, locationName(game));
     sound.setEngine(game.screen === SCREEN.PLAY && !!game.player.car, game.player.car ? Math.abs(game.player.car.speed) / 335 : 0);
     const policeNear = game.wanted > 0 && game.cars.some((c) => c.kind === 'police' && !c.dead);
     sound.setSiren(game.screen === SCREEN.PLAY && policeNear);
@@ -163,7 +175,14 @@ function drainEvents() {
   for (const ev of game.events) {
     switch (ev.name) {
       case 'door': sound.door(); break;
+      case 'engineOn': sound.engineOn(); break;
       case 'horn': sound.horn(); break;
+      case 'screech': sound.screech(); break;
+      case 'tag': sound.tag(); break;
+      case 'levelup': sound.levelUp(); break;
+      case 'eventStart': sound.eventStart(); break;
+      case 'raceCheckpoint': sound.raceCheckpoint(); break;
+      case 'sideDone': sound.missionDone(); break;
       case 'crash': sound.crash(ev.data && ev.data.big); break;
       case 'shot': sound.shot(); break;
       case 'punch': sound.punch(); break;

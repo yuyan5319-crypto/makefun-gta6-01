@@ -13,9 +13,12 @@ network, no libraries. Open `game/index.html` in a desktop browser (or run
 
 Marisol Vega is a dock courier in Neon Harbor, a neon-lit harbour city, and
 she owes the Cannery three months of money. Fixer Dee Okafor and dock boss
-Renzo feed her a five-job story arc — a quiet envelope run, a stolen coupe,
-a loud escape, a harbour time trial, and one last drive down the pier —
-while the harbour patrol does its best to end her career early.
+Renzo feed her a six-job story arc — a quiet envelope run, a stolen coupe,
+a loud escape, a harbour time trial, one last drive down the pier, and a
+finale that makes the Cannery pay her to rob them — while the harbour
+patrol does its best to end her career early. Between jobs the city keeps
+paying: side work from Dee's phone, random street events, and twelve neon
+tags hidden across the districts.
 
 - **Open world**: a seeded 14×11-block city with named districts, a beach,
   a pier and the sea, explorable on foot and by car, with a full day/night
@@ -28,16 +31,31 @@ while the harbour patrol does its best to end her career early.
 - **Wanted level & police**: crimes raise heat when witnessed. Police cars
   pursue and ram, foot officers chase and shoot, and standing still in
   reach fills the bust meter. Hide long enough and the stars cool off.
-- **Missions & story**: five jobs with briefings, dialogue, stage markers,
+  The higher the wanted level, the faster and more aggressive the pursuit.
+- **Missions & story**: six jobs with briefings, dialogue, stage markers,
   checkpoints, timers and payouts, plus respawning cash pickups for side
   income.
+- **Side jobs (J)**: repeatable work from Dee's phone — taxi fares, courier
+  drops and repo jobs — each with its own timer, marker and payout.
+- **Street events**: about once a minute the city throws something at
+  Marisol — a dropped cash crate, an impromptu three-checkpoint street
+  race, or a harbour-patrol raid to survive.
+- **Neon tags**: twelve glowing tags hidden across the districts; each pays
+  $25, all twelve pay a $500 bonus.
+- **Reputation**: jobs, events and tags earn REP through five ranks
+  (Street Courier → Neon Royalty), with a cash bonus on each rank-up, slow
+  car self-repair from Wheelwoman, and a harder-hitting pistol from
+  Harbor Legend.
+- **City life**: joggers cross the sidewalks, street vendors hold their
+  corners, neon signs name the districts, and plazas gather foot traffic.
 - **Combat**: fists from the start, a pistol once Marisol's reputation
   grows; mouse aim, tracers, hit reactions.
-- **HUD & minimap**: health, cash, district, objective line, mission timer,
-  wanted stars and a live circular minimap with police and objective blips.
+- **HUD & minimap**: health, cash, district, reputation rank and progress,
+  neon-tag count, objective line, mission timer, wanted stars and a live
+  circular minimap with police, objective, side-job, event and tag blips.
 - **Screens & save**: animated title screen, pause, busted/wasted flow, a
-  story-complete screen, and progress (cash, story, position, stats) saved
-  to `localStorage`.
+  story-complete screen, and progress (cash, story, reputation, tags,
+  position, stats) saved to `localStorage`.
 - **Sound**: all effects are synthesized live with WebAudio — engine hum,
   sirens, horns, crashes, gunshots, cash registers and mission stingers.
   No audio files.
@@ -50,7 +68,8 @@ while the harbour patrol does its best to end her career early.
 | Shift | Sprint |
 | E | Enter / exit car |
 | Mouse + click, or F | Aim and attack (fists, later pistol) |
-| Space | Handbrake |
+| Space | Handbrake (drift: skid marks, smoke, screech) |
+| J | Take a side job (taxi / courier / repo) |
 | H | Horn |
 | P / Esc | Pause |
 | M | Mute |
@@ -94,10 +113,18 @@ The game needs only a desktop browser — no build step and no network.
 - `main.ts` — the hand-in program: copies `game/` and `screenshots/` to the
   output directory and writes `dossier.json` with the vendored kit library.
 - `game/index.html` — the page.
-- `game/src/world.js` — the seeded city: roads, buildings, districts, collision.
-- `game/src/entities.js` — traffic, pedestrians, police AI and spawning.
-- `game/src/game.js` — the simulation: player, driving, combat, crime, wanted.
-- `game/src/missions.js` — the five-job story arc as data.
+- `game/src/world.js` — the seeded city: roads, buildings, districts, neon
+  signs, plazas, collision.
+- `game/src/entities.js` — traffic, pedestrians (walkers, joggers, vendors),
+  police AI and spawning.
+- `game/src/game.js` — the simulation: player, driving, combat, crime, wanted,
+  side jobs, street events, neon tags and reputation.
+- `game/src/missions.js` — the six-job story arc, the reputation ladder and
+  the neon-tag spots, as data.
+- `game/src/sidejobs.js` — repeatable side work: taxi fares, courier drops,
+  repo jobs, generated near the player.
+- `game/src/events.js` — random street events: cash drops, street races,
+  patrol raids, generated near the player.
 - `game/src/render.js` — canvas rendering, HUD and minimap, all screens.
 - `game/src/audio.js` — the WebAudio sound synth.
 - `game/src/input.js` — keyboard and mouse.

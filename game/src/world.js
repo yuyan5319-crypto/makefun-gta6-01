@@ -92,6 +92,21 @@ export function buildCity(seed) {
   const trees = [];
   const lamps = [];
   const umbrellas = [];
+  // Neon signs bolted to building corners: the city names itself at night.
+  const signs = [
+    { x: avenueX(7) + 40, y: streetY(3) + 10, text: 'NEON MILE', color: '#ff5da2' },
+    { x: avenueX(2) + 40, y: streetY(4) + 10, text: 'CANNERY ROW', color: '#facc15' },
+    { x: avenueX(12) - 40, y: streetY(1) + 10, text: 'CIELO HEIGHTS', color: '#22d3ee' },
+    { x: avenueX(7) + 40, y: streetY(5) + 10, text: 'DOWNTOWN LUMEN', color: '#a3e635' },
+    { x: avenueX(4) + 40, y: streetY(9) + 10, text: 'SOUTH DOCKS', color: '#38bdf8' },
+    { x: avenueX(10) - 40, y: streetY(10) - 14, text: 'FERRY PIER', color: '#f472b6' },
+  ];
+  // Plazas: open slabs with a fountain dot, for foot traffic to gather on.
+  const plazas = [
+    { x: avenueX(7), y: streetY(5), r: 46 },
+    { x: avenueX(2), y: streetY(4), r: 38 },
+    { x: avenueX(10), y: streetY(7), r: 40 },
+  ];
   for (let r = 0; r < ROWS; r++) {
     for (let c = 0; c < COLS; c++) {
       const bx = c * BLOCK + ROAD;
@@ -138,7 +153,17 @@ export function buildCity(seed) {
     if (rng() < 0.7) trees.push({ x: x + 26, y: WATER_Y - 80 + rng() * 24, s: 1 + rng() * 0.4 });
   }
   const pier = { x: WORLD_W / 2 - 26, y: WATER_Y - 8, w: 52, h: 150 };
-  return { buildings, trees, lamps, umbrellas, pier, roads: buildRoads() };
+  return { buildings, trees, lamps, umbrellas, pier, signs, plazas, roads: buildRoads() };
+}
+
+/** The nearest named landmark (neon sign) to a point, for flavour text. */
+export function landmarkNear(city, x, y) {
+  let best = null; let bestD = 320;
+  for (const s of city.signs) {
+    const d = dist(x, y, s.x, s.y);
+    if (d < bestD) { bestD = d; best = s.text; }
+  }
+  return best;
 }
 
 /** True when a rectangle hits any building or leaves the world. */

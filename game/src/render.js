@@ -8,8 +8,8 @@
 import {
   WORLD_W, WORLD_H, WATER_Y, ROAD, clamp, dist,
 } from './world.js';
-import { SCREEN, currentStage, missionOfferPoint } from './game.js';
-import { MISSIONS } from './missions.js';
+import { SCREEN, currentStage, currentSideStage, currentEventTarget, missionOfferPoint } from './game.js';
+import { MISSIONS, REP_LEVELS } from './missions.js';
 
 const DAY_SKY = ['#f7a56b', '#e35d8f', '#5b4b8a', '#1c1440', '#5b4b8a', '#f7a56b'];
 
@@ -85,6 +85,26 @@ function drawCity(ctx, game, cam, vw, vh) {
       for (let s = 0; s < 4; s++) ctx.fillRect(ix + 6 + s * 12, iy + 2, 6, 8);
       for (let s = 0; s < 4; s++) ctx.fillRect(ix + 6 + s * 12, iy + ROAD - 10, 6, 8);
     }
+  }
+  // Plazas: open slabs with a fountain dot, where foot traffic gathers.
+  for (const pl of city.plazas) {
+    if (pl.x + pl.r < cam.x || pl.y + pl.r < cam.y || pl.x - pl.r > cam.x + vw || pl.y - pl.r > cam.y + vh) continue;
+    ctx.fillStyle = '#312a55';
+    ctx.beginPath(); ctx.arc(pl.x, pl.y, pl.r, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#38bdf8';
+    ctx.beginPath(); ctx.arc(pl.x, pl.y, 7 + Math.sin(game.time * 2) * 1.5, 0, Math.PI * 2); ctx.fill();
+  }
+  // Neon signs on building corners: the city names itself, glowing at night.
+  ctx.textAlign = 'left';
+  for (const s of city.signs) {
+    if (s.x < cam.x - 140 || s.y < cam.y - 20 || s.x > cam.x + vw + 20 || s.y > cam.y + vh + 20) continue;
+    ctx.font = 'bold 15px system-ui, sans-serif';
+    ctx.globalAlpha = 0.55 + dark * 0.45;
+    ctx.fillStyle = s.color;
+    ctx.shadowColor = s.color; ctx.shadowBlur = 12;
+    ctx.fillText(s.text, s.x, s.y);
+    ctx.shadowBlur = 0;
+    ctx.globalAlpha = 1;
   }
   // The pier.
   ctx.fillStyle = '#7c5a36';
@@ -196,6 +216,13 @@ function drawCar(ctx, game, car) {
     ctx.fillStyle = 'rgba(249,115,22,0.75)';
     ctx.beginPath(); ctx.arc(car.x, car.y, 8 + Math.sin(game.time * 11) * 2.5, 0, Math.PI * 2); ctx.fill();
   }
+  // A car on its last legs burns: flickering flame under the hood.
+  if (!car.dead && car.health > 0 && car.health < 20) {
+    ctx.fillStyle = `rgba(249,115,22,${0.5 + Math.sin(game.time * 13) * 0.25})`;
+    ctx.beginPath(); ctx.arc(car.x + Math.cos(car.angle) * 12, car.y + Math.sin(car.angle) * 12, 6 + Math.sin(game.time * 17) * 2, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = 'rgba(250,204,21,0.8)';
+    ctx.beginPath(); ctx.arc(car.x + Math.cos(car.angle) * 12, car.y + Math.sin(car.angle) * 12, 3, 0, Math.PI * 2); ctx.fill();
+  }
 }
 
 /** One pedestrian (or Marisol when `hero` is set). */
@@ -212,6 +239,20 @@ function drawPed(ctx, game, ped, hero) {
     ctx.fillRect(ped.x - 5, ped.y - 9 + bob * 0.3, 10, 4);
     ctx.fillStyle = '#facc15';
     ctx.fillRect(ped.x - 1, ped.y - 8 + bob * 0.3, 2, 2);
+  }
+  if (ped.kind === 'vendor') {
+    // A market stall: striped awning over a crate of goods.
+    ctx.fillStyle = '#fbbf24';
+    ctx.fillRect(ped.x - 11, ped.y + 8, 22, 7);
+    ctx.fillStyle = '#b45309';
+    ctx.fillRect(ped.x - 11, ped.y + 8, 22, 2);
+    ctx.fillStyle = '#fef3c7';
+    for (let i = 0; i < 3; i++) ctx.fillRect(ped.x - 9 + i * 7, ped.y + 10, 4, 3);
+  }
+  if (ped.kind === 'runner') {
+    // Joggers lean forward: a headband and a faster bob.
+    ctx.fillStyle = '#f8fafc';
+    ctx.fillRect(ped.x - 4, ped.y - 6 + bob * 0.3, 8, 2);
   }
   if (hero) {
     // Direction tick so the player reads her facing.
@@ -272,6 +313,8 @@ function drawMinimap(ctx, game, vw) {
   }
   const stage = currentStage(game);
   const offer = missionOfferPoint(game);
+  const sideStage = currentSideStage(game);
+  const eventTarget = currentEventTarget(game);
   const dot = (x, y, color, r) => {
     ctx.fillStyle = color;
     ctx.beginPath();
@@ -290,6 +333,16 @@ function drawMinimap(ctx, game, vw) {
       if (car) dot(car.x, car.y, '#facc15', 3.4);
     } else if (stage.x !== undefined) dot(stage.x, stage.y, '#facc15', 3.4);
   } else if (offer) dot(offer.x, offer.y, '#a3e635', 3.2);
+  // Side jobs (green) and street events (orange) get their own blips.
+  if (sideStage) {
+    if (sideStage.kind === 'steal' && game.sideJob.targetCarId) {
+      const car = game.cars.find((c) => c.id === game.sideJob.targetCarId);
+      if (car) dot(car.x, car.y, '#a3e635', 3.2);
+    } else if (sideStage.x !== undefined) dot(sideStage.x, sideStage.y, '#a3e635', 3.2);
+  }
+  if (eventTarget) dot(eventTarget.x, eventTarget.y, '#fb923c', 3.4);
+  // Uncollected neon tags shimmer faintly on the map.
+  for (const tag of game.tags) if (!tag.taken) dot(tag.x, tag.y, '#e879f9', 1.6);
   for (const pk of game.pickups) if (!pk.taken) dot(pk.x, pk.y, '#a3e635', 1.8);
   // Player arrow.
   const px = cx - size / 2 + game.player.x * scale;
@@ -342,6 +395,33 @@ function drawHud(ctx, game, vw, vh, locationName) {
   ctx.font = '12px system-ui, sans-serif';
   ctx.fillStyle = 'rgba(255,255,255,0.75)';
   ctx.fillText(p.car ? 'DRIVING' : 'ON FOOT', 108, vh - 24);
+  // Reputation: level name and progress to the next rung.
+  const repLevel = REP_LEVELS.reduce((lvl, r, i) => (game.rep >= r.at ? i : lvl), 0);
+  const repNext = REP_LEVELS[repLevel + 1];
+  const repBase = REP_LEVELS[repLevel].at;
+  const repFrac = repNext ? clamp((game.rep - repBase) / (repNext.at - repBase), 0, 1) : 1;
+  ctx.fillStyle = 'rgba(10,6,24,0.66)';
+  rr(ctx, 16, vh - 96, 224, 26, 8); ctx.fill();
+  ctx.fillStyle = '#facc15';
+  rr(ctx, 24, vh - 88, 120 * repFrac, 6, 3); ctx.fill();
+  ctx.fillStyle = '#fde68a';
+  ctx.font = 'bold 11px system-ui, sans-serif';
+  ctx.fillText(`${REP_LEVELS[repLevel].name.toUpperCase()} · ${game.rep} REP`, 152, vh - 81);
+  // Neon tags collected, next to the cash readout.
+  const tagsGot = game.tags.filter((t) => t.taken).length;
+  ctx.fillStyle = '#e879f9';
+  ctx.font = 'bold 13px system-ui, sans-serif';
+  ctx.fillText(`◆ ${tagsGot}/12 tags`, 188, 44);
+  // Street-event banner with its countdown, under the cash panel.
+  if (game.randomEvent) {
+    const ev = game.randomEvent;
+    const t = Math.max(0, ev.t);
+    ctx.fillStyle = 'rgba(124,45,18,0.8)';
+    rr(ctx, 16, 130, 300, 30, 9); ctx.fill();
+    ctx.fillStyle = '#fdba74';
+    ctx.font = 'bold 13px system-ui, sans-serif';
+    ctx.fillText(`EVENT: ${ev.def.title} — ${Math.ceil(t)}s — $${ev.def.reward}`, 26, 150);
+  }
   // Cash + district, top left.
   ctx.fillStyle = 'rgba(10,6,24,0.66)';
   rr(ctx, 16, 16, 252, 62, 10); ctx.fill();
@@ -354,12 +434,19 @@ function drawHud(ctx, game, vw, vh, locationName) {
   // Objective panel under the cash.
   const stage = currentStage(game);
   const offer = missionOfferPoint(game);
+  const sideStage = currentSideStage(game);
+  const eventTarget = currentEventTarget(game);
   let objective = null;
   if (stage) {
     objective = stage.kind === 'trial'
       ? `${stage.label} — checkpoint ${game.mission.checkpoint + 1}/${stage.points.length}`
       : stage.label;
-  } else if (offer) objective = game.storyDone ? 'Free roam — the harbour is yours' : 'Go to the green phone marker to take the next job';
+  } else if (sideStage) {
+    objective = `Side job: ${sideStage.label} — $${game.sideJob.def.reward}`;
+  } else if (game.randomEvent) {
+    objective = `Event: ${game.randomEvent.def.label}`;
+  } else if (offer) objective = game.storyDone ? 'Free roam — press J for a side job' : 'Go to the green phone marker to take the next job';
+  else objective = 'Press J to take a side job · collect the ◆ neon tags';
   if (objective) {
     ctx.font = '14px system-ui, sans-serif';
     const wText = Math.min(430, ctx.measureText(objective).width + 28);
@@ -368,8 +455,13 @@ function drawHud(ctx, game, vw, vh, locationName) {
     ctx.fillStyle = '#fde68a';
     ctx.fillText(objective, 28, 110);
   }
-  if (game.mission && game.mission.timer !== null && game.mission.timer !== undefined) {
-    const t = Math.max(0, game.mission.timer);
+  // Countdown clock: story mission, side job or street event, whichever runs.
+  const clock = game.mission && game.mission.timer !== null && game.mission.timer !== undefined
+    ? game.mission.timer
+    : game.sideJob ? game.sideJob.timer
+    : game.randomEvent ? game.randomEvent.t : null;
+  if (clock !== null && clock !== undefined) {
+    const t = Math.max(0, clock);
     ctx.fillStyle = t < 12 ? '#ef4444' : '#22d3ee';
     ctx.font = 'bold 26px system-ui, sans-serif';
     ctx.textAlign = 'center';
@@ -458,8 +550,11 @@ function drawScreen(ctx, game, vw, vh) {
     ctx.fillText(hasSave ? 'Press ENTER to continue  ·  N for a new game' : 'Press ENTER to start', vw / 2, vh * 0.64);
     ctx.font = '14px system-ui, sans-serif';
     ctx.fillStyle = 'rgba(248,250,252,0.75)';
-    ctx.fillText('WASD / arrows move · E enter car · mouse aim, click or F attack · Shift sprint · H horn · P pause · M mute', vw / 2, vh * 0.70);
+    ctx.fillText('WASD / arrows move · E enter car · mouse aim, click or F attack · Shift sprint · Space handbrake · J side job · H horn · P pause · M mute', vw / 2, vh * 0.70);
+    const tagsGot = game.tags.filter((t) => t.taken).length;
+    const repName = REP_LEVELS.reduce((n, r) => (game.rep >= r.at ? r.name : n), REP_LEVELS[0].name);
     ctx.fillText(`Jobs done: ${game.missionIndex}/${MISSIONS.length} · Cash earned: $${game.stats.earned.toLocaleString('en-US')} · Cars stolen: ${game.stats.carsStolen}`, vw / 2, vh * 0.76);
+    ctx.fillText(`${repName} · ${game.rep} REP · Side jobs: ${game.stats.sideJobsDone} · Events: ${game.stats.eventsDone} · Neon tags: ${tagsGot}/12${game.bestTrial !== null ? ` · Best trial: ${game.bestTrial}s left` : ''}`, vw / 2, vh * 0.76 + 22);
   } else if (s === SCREEN.PAUSED) {
     ctx.fillStyle = '#f8fafc';
     ctx.font = 'bold 44px system-ui, sans-serif';
@@ -524,6 +619,32 @@ export function render(ctx, game, vw, vh, cam, locationName) {
     } else if (offer) {
       drawMarker(ctx, game, offer.x, offer.y, '#a3e635');
     }
+    // Side-job and street-event markers ride alongside the story one.
+    const sideStage = currentSideStage(game);
+    if (sideStage) {
+      if (sideStage.kind === 'steal' && game.sideJob.targetCarId) {
+        const car = game.cars.find((c) => c.id === game.sideJob.targetCarId);
+        if (car) drawMarker(ctx, game, car.x, car.y, '#a3e635');
+      } else if (sideStage.x !== undefined) drawMarker(ctx, game, sideStage.x, sideStage.y, '#a3e635');
+    }
+    const eventTarget = currentEventTarget(game);
+    if (eventTarget) drawMarker(ctx, game, eventTarget.x, eventTarget.y, '#fb923c');
+  }
+  // Neon tags: spinning pink diamonds, bright enough to spot from a car.
+  for (const tag of game.tags) {
+    if (tag.taken) continue;
+    if (tag.x < view.x - 40 || tag.y < view.y - 40 || tag.x > view.x + vw + 40 || tag.y > view.y + vh + 40) continue;
+    const glow = 0.6 + Math.sin(game.time * 5 + tag.index) * 0.4;
+    ctx.save();
+    ctx.translate(tag.x, tag.y + Math.sin(game.time * 3 + tag.index) * 2);
+    ctx.rotate(Math.PI / 4);
+    ctx.globalAlpha = glow;
+    ctx.fillStyle = '#e879f9';
+    ctx.shadowColor = '#e879f9'; ctx.shadowBlur = 14;
+    ctx.fillRect(-7, -7, 14, 14);
+    ctx.restore();
+    ctx.globalAlpha = 1;
+    ctx.shadowBlur = 0;
   }
   // Cash pickups.
   for (const pk of game.pickups) {
@@ -576,6 +697,25 @@ export function render(ctx, game, vw, vh, cam, locationName) {
   }
   ctx.globalAlpha = 1;
   ctx.restore();
+  // Speed vignette: at full tilt the edges darken and streaks fly past.
+  const carSpeed = game.player.car ? Math.abs(game.player.car.speed) : 0;
+  if (carSpeed > 230 && game.screen === SCREEN.PLAY) {
+    const vig = clamp((carSpeed - 230) / 105, 0, 1);
+    const grad = ctx.createRadialGradient(vw / 2, vh / 2, Math.min(vw, vh) * 0.32, vw / 2, vh / 2, Math.max(vw, vh) * 0.72);
+    grad.addColorStop(0, 'rgba(0,0,0,0)');
+    grad.addColorStop(1, `rgba(5,2,16,${0.45 * vig})`);
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, vw, vh);
+    ctx.strokeStyle = `rgba(255,255,255,${0.14 * vig})`;
+    ctx.lineWidth = 2;
+    for (let i = 0; i < 8; i++) {
+      const yy = ((i * 173 + game.time * 900) % vh + vh) % vh;
+      ctx.beginPath();
+      ctx.moveTo(0, yy);
+      ctx.lineTo(90 * vig + 20, yy);
+      ctx.stroke();
+    }
+  }
   // Night tint over the world (HUD stays bright).
   const dark = ambient(game);
   if (dark > 0.02) {

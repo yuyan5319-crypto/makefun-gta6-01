@@ -109,6 +109,26 @@ export function spawnAmbient(city, seed) {
     const p = sidewalkPoint(rng);
     peds.push(makePed(p.x, p.y, PED_COLORS[Math.floor(rng() * PED_COLORS.length)], 'civilian'));
   }
+  // Joggers: faster pedestrians who cross the city on the sidewalks.
+  for (let i = 0; i < 6; i++) {
+    const p = sidewalkPoint(rng);
+    const jogger = makePed(p.x, p.y, '#f8fafc', 'runner');
+    jogger.speed = 78 + rng() * 30;
+    peds.push(jogger);
+  }
+  // Street vendors: they hold their corner and never wander off.
+  const vendorSpots = [
+    { x: avenueX(7) - 30, y: streetY(5) - 30 },
+    { x: avenueX(2) + 30, y: streetY(4) + 30 },
+    { x: avenueX(10) - 30, y: streetY(7) + 30 },
+    { x: avenueX(4) + 30, y: streetY(9) - 30 },
+  ];
+  for (const spot of vendorSpots) {
+    const vendor = makePed(spot.x, spot.y, '#fbbf24', 'vendor');
+    vendor.speed = 0;
+    vendor.state = 'idle';
+    peds.push(vendor);
+  }
   return { cars, peds };
 }
 
@@ -188,6 +208,8 @@ export function updateTraffic(car, dt, city, cars, peds, playerPos) {
  */
 export function updatePed(ped, dt, city, threat) {
   if (ped.dead) return;
+  // Vendors hold their corner: they watch the street, nothing more.
+  if (ped.kind === 'vendor') { ped.state = 'idle'; ped.angle += dt * 0.4; return; }
   ped.wanderT -= dt;
   let tx = 0, ty = 0;
   if (threat && dist(ped.x, ped.y, threat.x, threat.y) < 130) {
@@ -217,17 +239,19 @@ export function updatePed(ped, dt, city, threat) {
 
 /**
  * Police car behaviour: pursue the player's position, ram to stop, and keep
- * pressure. Steering is a simple pursuit with obstacle slide.
+ * pressure. Steering is a simple pursuit with obstacle slide. The higher
+ * the wanted level, the faster and more aggressive the pursuit.
  */
-export function updatePoliceCar(car, dt, city, target) {
+export function updatePoliceCar(car, dt, city, target, wanted = 1) {
   const want = Math.atan2(target.y - car.y, target.x - car.x);
   let diff = want - car.angle;
   while (diff > Math.PI) diff -= Math.PI * 2;
   while (diff < -Math.PI) diff += Math.PI * 2;
   const d = dist(car.x, car.y, target.x, target.y);
-  const maxSpeed = d > 260 ? 252 : 205;
-  car.angle += clamp(diff, -2.4 * dt, 2.4 * dt);
-  const accel = Math.cos(diff) > -0.2 ? 300 : -160;
+  const maxSpeed = (d > 260 ? 252 : 205) + wanted * 9;
+  const steerRate = 2.4 + wanted * 0.18;
+  car.angle += clamp(diff, -steerRate * dt, steerRate * dt);
+  const accel = Math.cos(diff) > -0.2 ? 300 + wanted * 22 : -160;
   car.speed += clamp(accel * dt, -300 * dt, 300 * dt);
   car.speed = clamp(car.speed, -70, maxSpeed);
   const nx = car.x + Math.cos(car.angle) * car.speed * dt;
@@ -240,7 +264,7 @@ export function updatePoliceCar(car, dt, city, target) {
     else if (!collides(city, { x: car.x - 16, y: ny - 16, w: 32, h: 32 })) car.y = ny;
     car.speed *= 0.45;
   }
-  car.sirenPhase += dt * 9;
+  car.sirenPhase += dt * (9 + wanted);
 }
 
 /**

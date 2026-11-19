@@ -13,7 +13,44 @@ export const CONTACTS = {
   dee: { name: 'Dee Okafor', color: '#22d3ee' },
   marisol: { name: 'Marisol', color: '#ff5da2' },
   renzo: { name: 'Renzo', color: '#facc15' },
+  vince: { name: 'Vince the Dispatcher', color: '#a3e635' },
 };
+
+/** Reputation ladder: points earned from jobs, events and neon tags. */
+export const REP_LEVELS = [
+  { name: 'Street Courier', at: 0 },
+  { name: 'Runner', at: 150 },
+  { name: 'Wheelwoman', at: 400 },
+  { name: 'Harbor Legend', at: 900 },
+  { name: 'Neon Royalty', at: 1800 },
+];
+
+/** The reputation level index for a points total. */
+export function repLevelFor(rep) {
+  let level = 0;
+  for (let i = 0; i < REP_LEVELS.length; i++) {
+    if (rep >= REP_LEVELS[i].at) level = i;
+  }
+  return level;
+}
+
+/** Twelve hidden neon tags to collect around the city; all twelve pay $500. */
+export function collectibleSpots() {
+  return [
+    { x: avenueX(1) + 30, y: streetY(1) + 30 },
+    { x: avenueX(13) - 24, y: streetY(1) + 24 },
+    { x: avenueX(3) + 20, y: streetY(3) - 20 },
+    { x: avenueX(10) + 26, y: streetY(3) + 26 },
+    { x: avenueX(6) - 22, y: streetY(5) + 20 },
+    { x: avenueX(12) + 18, y: streetY(5) - 18 },
+    { x: avenueX(2) - 20, y: streetY(7) + 22 },
+    { x: avenueX(8) + 24, y: streetY(7) - 24 },
+    { x: avenueX(4) + 28, y: streetY(9) + 18 },
+    { x: avenueX(11) - 26, y: streetY(9) - 18 },
+    { x: avenueX(7) + 20, y: WATER_Y - 60 },
+    { x: WORLD_W / 2 + 60, y: WATER_Y - 40 },
+  ];
+}
 
 /**
  * Stage kinds the game loop understands:
@@ -112,7 +149,28 @@ export const MISSIONS = [
     outro: [
       'Renzo: Debt paid. The harbour is yours now, Marisol.',
       'Marisol: It always was. It just did not know it yet.',
-      '— MARISOL HEAT: story complete. The city stays open: drive, earn, and try the trial again from the start screen.',
+      'Dee: One last thing. The Cannery is not done with you — and neither am I.',
+    ],
+  },
+  {
+    id: 'harbor-legend',
+    title: 'Harbor Legend',
+    from: 'dee',
+    brief: [
+      'Dee: The Cannery wants its pound of flesh after all. They sent a crew to take the pier — and you with it.',
+      'Dee: Meet me at the Cannery Row safehouse, draw the patrol off my tail, then run the crate to the pier. Three stars, Marisol. Make them regret it.',
+      'Marisol: Six jobs in and they still want a piece of me. Fine. They can have the fast one.',
+    ],
+    reward: 4000,
+    stages: [
+      { kind: 'goto', label: 'Meet Dee at the Cannery Row safehouse', x: avenueX(2) + 24, y: streetY(4) + 24, r: 48, anyVehicle: true },
+      { kind: 'escape', label: 'Draw the patrol out until it is a 3-star hunt', x: avenueX(7), y: streetY(5), r: 300, stars: 3 },
+      { kind: 'deliver', label: 'Lose the heat, then drive the crate to the end of the pier', x: WORLD_W / 2, y: WATER_Y + 96, r: 52, time: 75, needVehicle: true, needCalm: true },
+    ],
+    outro: [
+      'Dee: The Cannery just paid you to rob them. That is the whole harbour, Marisol.',
+      'Marisol: Tell them the fast girl sends her regards.',
+      '— MARISOL HEAT: story complete. The city stays open: side jobs, street events and twelve neon tags still wait.',
     ],
   },
 ];

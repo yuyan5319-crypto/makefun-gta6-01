@@ -1,6 +1,8 @@
 // save.js — persistence in localStorage: cash, story progress, position,
-// and lifetime stats. Saving is best-effort: a browser that refuses storage
-// still plays the game, it just forgets between visits.
+// reputation, neon tags, side-job and event totals, and lifetime stats.
+// Saving is best-effort: a browser that refuses storage still plays the
+// game, it just forgets between visits. Old saves load fine: anything
+// missing falls back to the fresh defaults below.
 
 const KEY = 'marisol-heat-neon-harbor-v1';
 
@@ -11,7 +13,10 @@ export function freshSave() {
     missionIndex: 0,       // next mission to offer; MISSIONS.length = story done
     storyDone: false,
     x: null, y: null,      // last position (null = story start point)
-    stats: { earned: 0, carsStolen: 0, timesBusted: 0, timesWasted: 0, distanceKm: 0 },
+    rep: 0,                // reputation points (see REP_LEVELS in missions.js)
+    tagsTaken: [],         // indices of the neon tags already collected
+    bestTrial: null,       // best Harbour Trial time left on the clock, seconds
+    stats: { earned: 0, carsStolen: 0, timesBusted: 0, timesWasted: 0, distanceKm: 0, sideJobsDone: 0, eventsDone: 0, tagsFound: 0 },
   };
 }
 
@@ -23,7 +28,12 @@ export function loadSave() {
     const data = JSON.parse(raw);
     if (typeof data !== 'object' || data === null || typeof data.money !== 'number') return null;
     const base = freshSave();
-    return { ...base, ...data, stats: { ...base.stats, ...(data.stats || {}) } };
+    // Migrate old saves: new fields default, and a stray tagsTaken is reset.
+    const migrated = { ...base, ...data, stats: { ...base.stats, ...(data.stats || {}) } };
+    if (!Array.isArray(migrated.tagsTaken)) migrated.tagsTaken = [];
+    if (typeof migrated.rep !== 'number') migrated.rep = 0;
+    if (typeof migrated.bestTrial !== 'number') migrated.bestTrial = null;
+    return migrated;
   } catch {
     return null;
   }
