@@ -1,26 +1,83 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="description" content="Marisol Heat — Neon Harbor: an original open-world crime game. Drive a neon harbour city, run story jobs and side work, dodge the patrol, and collect twelve neon tags.">
-<meta name="theme-color" content="#0b0614">
-<title>Marisol Heat — Neon Harbor</title>
-<style>
-  /* Marisol Heat is one full-screen canvas; render.js draws everything
-     on it, so the page itself stays tiny. */
-  html, body { margin: 0; height: 100%; overflow: hidden; background: #0b0614; }
-  #game { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: crosshair; }
-  #status { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-  .noscript { color: #f8fafc; font: 16px system-ui, sans-serif; padding: 2rem; text-align: center; }
-</style>
+<title>Sunspire Heat — an open-world crime game</title>
+<link rel="stylesheet" href="style.css">
 </head>
 <body>
-<canvas id="game" aria-label="Marisol Heat — Neon Harbor: explore the harbor city on foot and by car"></canvas>
-<p id="status" role="status" aria-live="polite"></p>
-<noscript><p class="noscript">Marisol Heat needs JavaScript: open this page in a desktop browser with JavaScript switched on.</p></noscript>
-<!-- The whole game is ES modules under game/src/, loaded offline: no CDN,
-     no fonts, no images and no network requests of any kind. -->
-<script type="module" src="./src/main.js"></script>
+<div id="stage">
+  <canvas id="game" width="1280" height="720"></canvas>
+
+  <div id="hud" class="hidden">
+    <div id="hud-left">
+      <div id="health-wrap"><div id="health-bar"></div><span id="health-num">100</span></div>
+      <div id="cash-line">$<span id="cash-num">0</span></div>
+      <div id="stars-line"><span id="stars"></span></div>
+      <div id="ammo-line">AMMO <span id="ammo-num">24</span></div>
+    </div>
+    <div id="hud-right">
+      <canvas id="minimap" width="220" height="168"></canvas>
+      <div id="clock-line"><span id="clock-num">09:00</span> <span id="speed-num">0 mph</span></div>
+    </div>
+    <div id="objective"><span id="objective-title">SUNSPIRE HEAT</span><span id="objective-text"></span></div>
+    <div id="toast"></div>
+    <div id="hint-line">WASD move / drive &nbsp;·&nbsp; E enter car &nbsp;·&nbsp; Mouse aim, Click shoot &nbsp;·&nbsp; Space punch / brake &nbsp;·&nbsp; Shift boost &nbsp;·&nbsp; P save &nbsp;·&nbsp; Esc pause &nbsp;·&nbsp; M mute</div>
+  </div>
+
+  <div id="screen-title" class="overlay">
+    <h1>SUNSPIRE<span>HEAT</span></h1>
+    <p class="tagline">A sun-soaked city. A courier with a debt. One long hot week.</p>
+    <p class="story">Dana Cruz came back to Sunspire City to drive parcels and stay clean.
+      The city had other plans. Run five jobs for the harbor crew, dodge the Sunspire
+      PD, and buy your way out — on foot or behind the wheel.</p>
+    <div class="menu">
+      <button id="btn-start">▶ Start the week</button>
+      <button id="btn-continue" class="hidden">Continue — <span id="continue-label"></span></button>
+    </div>
+    <div class="controls">
+      <div><b>WASD / Arrows</b> — move &amp; drive</div>
+      <div><b>E</b> — steal / enter a car, exit a car</div>
+      <div><b>Mouse + Click</b> — aim &amp; shoot (on foot)</div>
+      <div><b>Space</b> — punch / handbrake</div>
+      <div><b>Shift</b> — nitro boost</div>
+      <div><b>P</b> — save &nbsp; <b>Esc</b> — pause &nbsp; <b>M</b> — mute</div>
+    </div>
+    <p class="foot">Original game · Sunspire City is fictional · No network needed — all files are local</p>
+  </div>
+
+  <div id="screen-pause" class="overlay hidden">
+    <h2>PAUSED</h2>
+    <p class="tagline">The city waits. The cops don't.</p>
+    <div class="menu">
+      <button id="btn-resume">Resume</button>
+      <button id="btn-save">Save game</button>
+      <button id="btn-quit">Quit to title</button>
+    </div>
+  </div>
+
+  <div id="screen-dead" class="overlay hidden">
+    <h2>BUSTED / FLATLINED</h2>
+    <p class="tagline" id="dead-line">Sunspire PD sends its regards.</p>
+    <div class="menu">
+      <button id="btn-retry">Retry from last save</button>
+      <button id="btn-dead-title">Back to title</button>
+    </div>
+  </div>
+
+  <div id="screen-win" class="overlay hidden">
+    <h2>DEBT PAID.</h2>
+    <p class="tagline">Dana drives out of Sunspire City at dawn — clean, for once.</p>
+    <p class="story" id="win-stats"></p>
+    <div class="menu">
+      <button id="btn-again">Play again</button>
+      <button id="btn-win-title">Back to title</button>
+    </div>
+  </div>
+
+  <pre id="selftest" class="hidden"></pre>
+</div>
+<script type="module" src="js/boot.js"></script>
 </body>
 </html>

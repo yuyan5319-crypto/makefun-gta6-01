@@ -1,0 +1,73 @@
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; background: #0b0e1a; }
+body {
+  font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  color: #f2ede4; overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+}
+#stage { position: relative; width: 1280px; height: 720px; max-width: 100vw; max-height: 100vh; }
+#game { display: block; width: 100%; height: 100%; background: #2e4a2f; cursor: crosshair; }
+.hidden { display: none !important; }
+
+/* ---------- HUD ---------- */
+#hud { position: absolute; inset: 0; pointer-events: none; font-weight: 600; }
+#hud-left { position: absolute; top: 14px; left: 14px; display: flex; flex-direction: column; gap: 6px; }
+#health-wrap {
+  width: 220px; height: 22px; background: rgba(0,0,0,.55);
+  border: 2px solid rgba(255,255,255,.75); border-radius: 4px; position: relative; overflow: hidden;
+}
+#health-bar { height: 100%; width: 100%; background: linear-gradient(90deg, #ff5a3c, #ffb03c); transition: width .15s; }
+#health-num { position: absolute; inset: 0; text-align: center; font-size: 13px; line-height: 19px; text-shadow: 0 1px 2px #000; }
+#cash-line { font-size: 22px; color: #7dff9a; text-shadow: 0 2px 3px #000; letter-spacing: 1px; }
+#stars-line { font-size: 24px; letter-spacing: 4px; min-height: 30px; text-shadow: 0 2px 4px #000; }
+#stars-line .lit { color: #ffd23c; }
+#stars-line .dim { color: rgba(255,255,255,.28); }
+#ammo-line { font-size: 13px; color: #ffe9a8; text-shadow: 0 1px 2px #000; }
+#hud-right { position: absolute; top: 14px; right: 14px; text-align: right; }
+#minimap { border: 2px solid rgba(255,255,255,.8); border-radius: 6px; background: #10182a; box-shadow: 0 2px 10px rgba(0,0,0,.5); }
+#clock-line { margin-top: 4px; font-size: 15px; text-shadow: 0 1px 3px #000; }
+#objective {
+  position: absolute; top: 14px; left: 50%; transform: translateX(-50%);
+  max-width: 520px; text-align: center; background: rgba(0,0,0,.55);
+  border-radius: 6px; padding: 7px 16px; border: 1px solid rgba(255,210,60,.55);
+}
+#objective-title { display: block; font-size: 12px; letter-spacing: 3px; color: #ffd23c; }
+#objective-text { display: block; font-size: 15px; margin-top: 2px; }
+#toast {
+  position: absolute; top: 96px; left: 50%; transform: translateX(-50%);
+  font-size: 20px; color: #ffe9a8; text-shadow: 0 2px 4px #000; opacity: 0; transition: opacity .3s;
+  white-space: nowrap;
+}
+#toast.show { opacity: 1; }
+#hint-line {
+  position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%);
+  font-size: 12px; color: rgba(255,255,255,.85); text-shadow: 0 1px 2px #000;
+  background: rgba(0,0,0,.4); padding: 4px 12px; border-radius: 20px; white-space: nowrap;
+}
+
+/* ---------- Overlays ---------- */
+.overlay {
+  position: absolute; inset: 0; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 14px; text-align: center;
+  background: linear-gradient(180deg, rgba(10,8,28,.82), rgba(60,12,40,.78));
+  backdrop-filter: blur(2px); padding: 24px;
+}
+.overlay h1 { font-size: 84px; letter-spacing: 6px; line-height: .95; color: #fff;
+  text-shadow: 0 0 24px #ff5a3c, 0 4px 0 #b3123f, 0 8px 24px #000; }
+.overlay h1 span { display: block; color: #ffd23c; }
+.overlay h2 { font-size: 56px; letter-spacing: 4px; color: #ffd23c; text-shadow: 0 4px 0 #b3123f, 0 8px 24px #000; }
+.tagline { font-size: 17px; color: #ffe9a8; }
+.story { max-width: 620px; font-size: 15px; line-height: 1.55; color: #e8e2d4; }
+.menu { display: flex; flex-direction: column; gap: 10px; margin-top: 6px; }
+.menu button {
+  font: inherit; font-size: 18px; font-weight: 700; letter-spacing: 1px;
+  color: #14101f; background: linear-gradient(180deg, #ffd23c, #ff9d2e);
+  border: none; border-radius: 8px; padding: 12px 34px; cursor: pointer;
+  box-shadow: 0 4px 0 #b3123f, 0 8px 18px rgba(0,0,0,.45);
+}
+.menu button:hover { filter: brightness(1.08); }
+.menu button:active { transform: translateY(3px); box-shadow: 0 1px 0 #b3123f; }
+.controls { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 28px; font-size: 13px; color: #cfc8b8; text-align: left; margin-top: 8px; }
+.controls b { color: #ffd23c; }
+.foot { font-size: 12px; color: rgba(255,255,255,.55); }
+#selftest { position: absolute; left: 0; bottom: 0; font-size: 10px; color: #0f0; background: rgba(0,0,0,.7); }
