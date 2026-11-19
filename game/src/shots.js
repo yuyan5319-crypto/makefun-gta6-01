@@ -2,8 +2,8 @@
 // Each scene builds the real game, fast-forwards the real simulation with a
 // simple scripted driver, and freezes a frame that shows the game's systems
 // honestly: the title over the city, a mission pickup downtown, a police
-// chase with the wanted stars lit, Marisol on foot at the beach pier, and a
-// side job with a street event running beside it. The same seed and script
+// chase with the wanted stars lit, Marisol on foot at the beach pier, and
+// a side job running next to a live street event. The same seed and script
 // always produce the same frame.
 
 import { createGame, stepGame, startMission, startSideJob, startRandomEvent, commitCrime, SCREEN } from './game.js';
@@ -56,14 +56,15 @@ function baseGame(city, save) {
 export function stageShot(name, city) {
   const input = scriptedInput({});
   if (name === 'side') {
-    // Side work in progress: a taxi fare active, a cash-drop event live,
-    // a neon tag glowing nearby, and Marisol's reputation on the HUD.
+    // Side work in progress downtown: a taxi fare on the clock, a street
+    // event live beside it, a neon tag glowing nearby, and Marisol's
+    // reputation already on the HUD. The event starts first — a side job
+    // cannot start while one is already running, but the reverse is fine.
     const game = baseGame(city);
     game.player.x = avenueX(7) + 8;
     game.player.y = streetY(4) + 60;
     game.rep = 420;
     game.money = 860;
-    // Event first: starting a side job afterwards is allowed, not vice versa.
     startRandomEvent(game);
     startSideJob(game);
     game.dialogue = null;

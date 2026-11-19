@@ -70,21 +70,33 @@ export class SoundBank {
   click() { this.blip(660, 520, 0.07, 'square', 0.12); }
   pickup() { this.blip(880, 1320, 0.14, 'sine', 0.22); this.blip(1320, 1760, 0.18, 'sine', 0.12); }
   cash() { this.blip(1180, 1180, 0.06, 'triangle', 0.2); setTimeout(() => this.blip(1560, 1560, 0.1, 'triangle', 0.2), 55); }
-  /** Engine turning over when Marisol gets in a car. */
-  engineOn() { this.blip(90, 190, 0.28, 'sawtooth', 0.14); this.noise(0.12, 500, 0.12, 0.8); }
-  /** Tyre screech for handbrake drifts. */
-  screech() { this.noise(0.28, 2400, 0.14, 3); }
-  /** A neon tag collected: a bright two-note chime. */
-  tag() { this.blip(1568, 1568, 0.1, 'sine', 0.2); setTimeout(() => this.blip(2093, 2093, 0.16, 'sine', 0.18), 70); }
-  /** Reputation level up: a rising four-note fanfare. */
-  levelUp() {
+  /** Play a short run of notes, one after another, for stingers. */
+  chime(notes, type, vol, gap = 90, dur = 0.2) {
     if (!this.ctx || this.muted) return;
-    [392, 523, 659, 784].forEach((n, i) => setTimeout(() => this.blip(n, n, 0.2, 'triangle', 0.2), i * 85));
+    notes.forEach((n, i) => setTimeout(() => this.blip(n, n, dur, type, vol), i * gap));
   }
+
+  /** Engine turning over when Marisol gets in a car. */
+  engineOn() {
+    this.blip(80, 210, 0.3, 'sawtooth', 0.13);
+    this.noise(0.14, 420, 0.12, 0.8);
+  }
+  /** Tyre screech for handbrake drifts. */
+  screech() { this.noise(0.3, 2600, 0.13, 3.5); }
+  /** A neon tag collected: a bright two-note chime, up a fifth. */
+  tag() {
+    this.blip(1319, 1319, 0.1, 'sine', 0.2);
+    setTimeout(() => this.blip(1976, 1976, 0.18, 'sine', 0.18), 70);
+  }
+  /** Reputation level up: a rising four-note fanfare. */
+  levelUp() { this.chime([330, 415, 494, 659], 'triangle', 0.2, 85, 0.22); }
   /** A street event starting: a low-high alert call. */
-  eventStart() { this.blip(330, 330, 0.12, 'square', 0.16); setTimeout(() => this.blip(660, 660, 0.16, 'square', 0.16), 120); }
+  eventStart() {
+    this.blip(294, 294, 0.12, 'square', 0.15);
+    setTimeout(() => this.blip(587, 587, 0.16, 'square', 0.15), 120);
+  }
   /** A race checkpoint passed: a quick rising tick. */
-  raceCheckpoint() { this.blip(980, 1470, 0.12, 'sine', 0.2); }
+  raceCheckpoint() { this.blip(880, 1319, 0.12, 'sine', 0.2); }
   door() { this.noise(0.09, 500, 0.25, 0.8); this.blip(180, 120, 0.1, 'square', 0.1); }
   horn() { this.blip(370, 360, 0.22, 'sawtooth', 0.14); this.blip(466, 452, 0.22, 'sawtooth', 0.1); }
   crash(big) { this.noise(big ? 0.4 : 0.18, big ? 300 : 700, big ? 0.5 : 0.3, 0.6); this.blip(120, 40, 0.25, 'square', 0.2); }

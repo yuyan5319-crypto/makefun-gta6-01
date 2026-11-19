@@ -1,8 +1,12 @@
 // save.js — persistence in localStorage: cash, story progress, position,
 // reputation, neon tags, side-job and event totals, and lifetime stats.
 // Saving is best-effort: a browser that refuses storage still plays the
-// game, it just forgets between visits. Old saves load fine: anything
-// missing falls back to the fresh defaults below.
+// game, it just forgets between visits.
+//
+// Old saves load fine. A save from before the reputation/tag era simply
+// lacks those fields, and loadSave fills them from the fresh defaults
+// below — so a v1 player keeps her cash and story, and starts collecting
+// tags from zero.
 
 const KEY = 'marisol-heat-neon-harbor-v1';
 
@@ -10,17 +14,24 @@ const KEY = 'marisol-heat-neon-harbor-v1';
 export function freshSave() {
   return {
     money: 40,
-    missionIndex: 0,       // next mission to offer; MISSIONS.length = story done
+    missionIndex: 0, // next mission to offer; MISSIONS.length = story done
     storyDone: false,
-    x: null, y: null,      // last position (null = story start point)
-    rep: 0,                // reputation points (see REP_LEVELS in missions.js)
-    tagsTaken: [],         // indices of the neon tags already collected
-    bestTrial: null,       // best Harbour Trial time left on the clock, seconds
-    stats: { earned: 0, carsStolen: 0, timesBusted: 0, timesWasted: 0, distanceKm: 0, sideJobsDone: 0, eventsDone: 0, tagsFound: 0 },
+    x: null, y: null, // last position (null = story start point)
+    rep: 0, // reputation points (see REP_LEVELS in missions.js)
+    tagsTaken: [], // indices of the neon tags already collected
+    bestTrial: null, // best Harbour Trial time left on the clock, seconds
+    stats: {
+      earned: 0, carsStolen: 0, timesBusted: 0, timesWasted: 0,
+      distanceKm: 0, sideJobsDone: 0, eventsDone: 0, tagsFound: 0,
+    },
   };
 }
 
-/** Load the save, tolerating missing or damaged data. */
+/**
+ * Load the save, tolerating missing or damaged data. Anything absent —
+ * a whole field, or one stray value of the wrong shape — falls back to
+ * the fresh default for that field, never to a crash.
+ */
 export function loadSave() {
   try {
     const raw = localStorage.getItem(KEY);
@@ -28,8 +39,9 @@ export function loadSave() {
     const data = JSON.parse(raw);
     if (typeof data !== 'object' || data === null || typeof data.money !== 'number') return null;
     const base = freshSave();
-    // Migrate old saves: new fields default, and a stray tagsTaken is reset.
     const migrated = { ...base, ...data, stats: { ...base.stats, ...(data.stats || {}) } };
+    // Migrate old saves: new fields default when they are missing or
+    // the wrong shape, and a stray tagsTaken is reset to empty.
     if (!Array.isArray(migrated.tagsTaken)) migrated.tagsTaken = [];
     if (typeof migrated.rep !== 'number') migrated.rep = 0;
     if (typeof migrated.bestTrial !== 'number') migrated.bestTrial = null;

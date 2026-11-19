@@ -44,7 +44,8 @@ export class Input {
   /** True once per physical press; the loop calls endFrame() after reading. */
   justPressed(key) { return this.pressed.has(key); }
 
-  /** Like justPressed, but also eats the press so a second reader misses it. */
+  /** Like justPressed, but the press is eaten: a second reader this
+   *  frame will not see it. For keys two systems both watch. */
   consume(key) {
     if (!this.pressed.has(key)) return false;
     this.pressed.delete(key);

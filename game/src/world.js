@@ -83,8 +83,9 @@ export function districtAt(x, y) {
 
 /**
  * Generate the whole city for a seed: buildings (solid), palm trees, lamps,
- * beach umbrellas and the pier. Buildings carry a neon sign colour and a
- * lit-window pattern so the renders feel alive.
+ * beach umbrellas, the pier, neon district signs and open plazas.
+ * Buildings carry a neon sign colour and a lit-window pattern so the
+ * renders feel alive.
  */
 export function buildCity(seed) {
   const rng = makeRng(seed);
@@ -92,7 +93,8 @@ export function buildCity(seed) {
   const trees = [];
   const lamps = [];
   const umbrellas = [];
-  // Neon signs bolted to building corners: the city names itself at night.
+  // Neon signs bolted to building corners: the city names itself at
+  // night, one glowing district name per corner of the map.
   const signs = [
     { x: avenueX(7) + 40, y: streetY(3) + 10, text: 'NEON MILE', color: '#ff5da2' },
     { x: avenueX(2) + 40, y: streetY(4) + 10, text: 'CANNERY ROW', color: '#facc15' },
@@ -101,7 +103,8 @@ export function buildCity(seed) {
     { x: avenueX(4) + 40, y: streetY(9) + 10, text: 'SOUTH DOCKS', color: '#38bdf8' },
     { x: avenueX(10) - 40, y: streetY(10) - 14, text: 'FERRY PIER', color: '#f472b6' },
   ];
-  // Plazas: open slabs with a fountain dot, for foot traffic to gather on.
+  // Plazas: open slabs with a fountain dot, where foot traffic gathers
+  // instead of hurrying past — downtown, Cannery Row and the Palms.
   const plazas = [
     { x: avenueX(7), y: streetY(5), r: 46 },
     { x: avenueX(2), y: streetY(4), r: 38 },
@@ -156,12 +159,17 @@ export function buildCity(seed) {
   return { buildings, trees, lamps, umbrellas, pier, signs, plazas, roads: buildRoads() };
 }
 
-/** The nearest named landmark (neon sign) to a point, for flavour text. */
+/** The nearest named landmark (a neon sign) to a point, or null when
+ *  nothing is close enough to be worth naming. */
 export function landmarkNear(city, x, y) {
-  let best = null; let bestD = 320;
+  let best = null;
+  let bestD = 320;
   for (const s of city.signs) {
     const d = dist(x, y, s.x, s.y);
-    if (d < bestD) { bestD = d; best = s.text; }
+    if (d < bestD) {
+      bestD = d;
+      best = s.text;
+    }
   }
   return best;
 }

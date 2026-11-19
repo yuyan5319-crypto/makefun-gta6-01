@@ -109,14 +109,16 @@ export function spawnAmbient(city, seed) {
     const p = sidewalkPoint(rng);
     peds.push(makePed(p.x, p.y, PED_COLORS[Math.floor(rng() * PED_COLORS.length)], 'civilian'));
   }
-  // Joggers: faster pedestrians who cross the city on the sidewalks.
+  // Joggers: faster pedestrians who cross the city on the sidewalks,
+  // headbanded and always in a hurry, even with nowhere to be.
   for (let i = 0; i < 6; i++) {
     const p = sidewalkPoint(rng);
     const jogger = makePed(p.x, p.y, '#f8fafc', 'runner');
     jogger.speed = 78 + rng() * 30;
     peds.push(jogger);
   }
-  // Street vendors: they hold their corner and never wander off.
+  // Street vendors: they hold their corner and never wander off — a
+  // stall, a crate of goods, and a whole afternoon of watching the road.
   const vendorSpots = [
     { x: avenueX(7) - 30, y: streetY(5) - 30 },
     { x: avenueX(2) + 30, y: streetY(4) + 30 },
@@ -209,7 +211,12 @@ export function updateTraffic(car, dt, city, cars, peds, playerPos) {
 export function updatePed(ped, dt, city, threat) {
   if (ped.dead) return;
   // Vendors hold their corner: they watch the street, nothing more.
-  if (ped.kind === 'vendor') { ped.state = 'idle'; ped.angle += dt * 0.4; return; }
+  // (Their slow turn is the whole performance.)
+  if (ped.kind === 'vendor') {
+    ped.state = 'idle';
+    ped.angle += dt * 0.4;
+    return;
+  }
   ped.wanderT -= dt;
   let tx = 0, ty = 0;
   if (threat && dist(ped.x, ped.y, threat.x, threat.y) < 130) {
@@ -238,9 +245,10 @@ export function updatePed(ped, dt, city, threat) {
 }
 
 /**
- * Police car behaviour: pursue the player's position, ram to stop, and keep
- * pressure. Steering is a simple pursuit with obstacle slide. The higher
- * the wanted level, the faster and more aggressive the pursuit.
+ * Police car behaviour: pursue the player's position, ram to stop, and
+ * keep the pressure on. Steering is a simple pursuit with obstacle
+ * slide. The higher the wanted level, the faster the patrol closes in,
+ * the harder it steers, and the quicker its siren wails.
  */
 export function updatePoliceCar(car, dt, city, target, wanted = 1) {
   const want = Math.atan2(target.y - car.y, target.x - car.x);
@@ -248,12 +256,14 @@ export function updatePoliceCar(car, dt, city, target, wanted = 1) {
   while (diff > Math.PI) diff -= Math.PI * 2;
   while (diff < -Math.PI) diff += Math.PI * 2;
   const d = dist(car.x, car.y, target.x, target.y);
-  const maxSpeed = (d > 260 ? 252 : 205) + wanted * 9;
+  // Heat makes the patrol faster and meaner: +9 top speed, +0.18 steer
+  // and +22 acceleration per star, and the siren spins up with it.
+  const topSpeed = (d > 260 ? 252 : 205) + wanted * 9;
   const steerRate = 2.4 + wanted * 0.18;
   car.angle += clamp(diff, -steerRate * dt, steerRate * dt);
   const accel = Math.cos(diff) > -0.2 ? 300 + wanted * 22 : -160;
   car.speed += clamp(accel * dt, -300 * dt, 300 * dt);
-  car.speed = clamp(car.speed, -70, maxSpeed);
+  car.speed = clamp(car.speed, -70, topSpeed);
   const nx = car.x + Math.cos(car.angle) * car.speed * dt;
   const ny = car.y + Math.sin(car.angle) * car.speed * dt;
   if (!collides(city, { x: nx - 16, y: ny - 16, w: 32, h: 32 })) {

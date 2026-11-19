@@ -1,10 +1,12 @@
-// missions.js — "Marisol Heat": a five-job story arc in Neon Harbor.
+// missions.js — "Marisol Heat": a six-job story arc in Neon Harbor.
 // Marisol Vega, a dock courier who owes money to the wrong people, takes a
 // string of escalating jobs for fixer Delia "Dee" Okafor: a quiet delivery,
-// a borrowed boat of a car, a loud escape, a harbour time trial, and one
-// last run to the pier that pays the debt off — or buries her.
+// a borrowed boat of a car, a loud escape, a harbour time trial, one last
+// run to the pier — and a finale where the Cannery pays her to rob them.
 // Each mission is data: a briefing, a sequence of stages (go somewhere, be
 // in a specific car, survive a wanted level, beat a clock) and a payout.
+// The reputation ladder and the neon-tag spots live here too, as data the
+// simulation in game.js reads.
 
 import { avenueX, streetY, WORLD_W, WATER_Y } from './world.js';
 
@@ -16,7 +18,11 @@ export const CONTACTS = {
   vince: { name: 'Vince the Dispatcher', color: '#a3e635' },
 };
 
-/** Reputation ladder: points earned from jobs, events and neon tags. */
+/**
+ * The reputation ladder. REP flows in from finished jobs, survived street
+ * events and found neon tags; each rung is a name the harbour starts calling
+ * Marisol, plus a cash bonus when she climbs onto it.
+ */
 export const REP_LEVELS = [
   { name: 'Street Courier', at: 0 },
   { name: 'Runner', at: 150 },
@@ -25,16 +31,20 @@ export const REP_LEVELS = [
   { name: 'Neon Royalty', at: 1800 },
 ];
 
-/** The reputation level index for a points total. */
+/** Which rung a REP total stands on (0-based index into REP_LEVELS). */
 export function repLevelFor(rep) {
-  let level = 0;
+  let rung = 0;
   for (let i = 0; i < REP_LEVELS.length; i++) {
-    if (rep >= REP_LEVELS[i].at) level = i;
+    if (rep >= REP_LEVELS[i].at) rung = i;
   }
-  return level;
+  return rung;
 }
 
-/** Twelve hidden neon tags to collect around the city; all twelve pay $500. */
+/**
+ * The twelve neon tags hidden around Neon Harbor. Walk or drive over one
+ * to collect it; finding all twelve pays a $500 set bonus on top of the
+ * $25 each one is worth.
+ */
 export function collectibleSpots() {
   return [
     { x: avenueX(1) + 30, y: streetY(1) + 30 },
@@ -149,7 +159,7 @@ export const MISSIONS = [
     outro: [
       'Renzo: Debt paid. The harbour is yours now, Marisol.',
       'Marisol: It always was. It just did not know it yet.',
-      'Dee: One last thing. The Cannery is not done with you — and neither am I.',
+      'Dee: Enjoy the quiet. It never lasts in this town.',
     ],
   },
   {
@@ -157,9 +167,9 @@ export const MISSIONS = [
     title: 'Harbor Legend',
     from: 'dee',
     brief: [
-      'Dee: The Cannery wants its pound of flesh after all. They sent a crew to take the pier — and you with it.',
-      'Dee: Meet me at the Cannery Row safehouse, draw the patrol off my tail, then run the crate to the pier. Three stars, Marisol. Make them regret it.',
-      'Marisol: Six jobs in and they still want a piece of me. Fine. They can have the fast one.',
+      'Dee: So the Cannery did the maths and decided the pier is worth more than your debt. They sent a crew to take it back — and you with it.',
+      'Dee: Come to the safehouse first. Then get loud on purpose: pull the patrol onto yourself until it is a three-star hunt. Then go quiet, and run the crate down the pier like the sea is not even there.',
+      'Marisol: They want the fast girl? They get the fast girl. Tell the crew to bring a camera.',
     ],
     reward: 4000,
     stages: [
@@ -168,8 +178,8 @@ export const MISSIONS = [
       { kind: 'deliver', label: 'Lose the heat, then drive the crate to the end of the pier', x: WORLD_W / 2, y: WATER_Y + 96, r: 52, time: 75, needVehicle: true, needCalm: true },
     ],
     outro: [
-      'Dee: The Cannery just paid you to rob them. That is the whole harbour, Marisol.',
-      'Marisol: Tell them the fast girl sends her regards.',
+      'Dee: The Cannery just paid you to rob them. That is the whole harbour in one sentence, Marisol.',
+      'Marisol: Put it on a postcard. The fast girl sends her regards.',
       '— MARISOL HEAT: story complete. The city stays open: side jobs, street events and twelve neon tags still wait.',
     ],
   },

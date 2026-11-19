@@ -2,8 +2,11 @@
 // It builds the city, loads the save, runs the simulation from game.js at
 // 60 steps a second, renders with render.js, turns simulation events into
 // WebAudio sounds, and handles the title / pause / busted / wasted flow.
-// The camera is smoothed (an exponential follow toward the lookahead
-// target game.js computes), so fast driving feels steady instead of jittery.
+//
+// The camera does not snap to the player: it eases toward the lookahead
+// target game.js computes, so fast driving feels steady instead of
+// jittery, and it snaps only when the player teleports (a revive, a
+// fresh game) so the view never chases a ghost.
 // With ?shot=<name> it instead stages one deterministic screenshot scene.
 
 import { buildCity } from './world.js';
@@ -64,7 +67,8 @@ function bootLive() {
   let last = performance.now();
   let acc = 0;
   const STEP = 1 / 60;
-  // Smoothed camera: exponential follow toward the lookahead target.
+  // Smoothed camera: an exponential follow toward the lookahead target,
+  // so the view glides instead of snapping to every bump in the road.
   let smoothCam = cameraTarget(game);
 
   function frame(now) {
@@ -87,15 +91,18 @@ function bootLive() {
       drainEvents();
       input.endFrame();
     }
-    // Ease the camera toward the target: fast when far, gentle when close.
+    // Ease the camera toward the target: quick when far away, gentle
+    // when close — and snap on a big jump (revive, teleport) so the
+    // view never chases a ghost across the map.
     const target = cameraTarget(game);
     const k = 1 - Math.exp(-9 * dt);
     smoothCam = {
       x: smoothCam.x + (target.x - smoothCam.x) * k,
       y: smoothCam.y + (target.y - smoothCam.y) * k,
     };
-    // Snap on a big jump (revive, teleport) so the view never chases ghosts.
-    if (Math.hypot(target.x - smoothCam.x, target.y - smoothCam.y) > 420) smoothCam = { ...target };
+    if (Math.hypot(target.x - smoothCam.x, target.y - smoothCam.y) > 420) {
+      smoothCam = { ...target };
+    }
     render(ctx, game, canvas.width, canvas.height, smoothCam, locationName(game));
     sound.setEngine(game.screen === SCREEN.PLAY && !!game.player.car, game.player.car ? Math.abs(game.player.car.speed) / 335 : 0);
     const policeNear = game.wanted > 0 && game.cars.some((c) => c.kind === 'police' && !c.dead);
@@ -177,6 +184,7 @@ function drainEvents() {
       case 'door': sound.door(); break;
       case 'engineOn': sound.engineOn(); break;
       case 'horn': sound.horn(); break;
+      // The enhanced edition's sounds: drifting, tags, rank-ups, events.
       case 'screech': sound.screech(); break;
       case 'tag': sound.tag(); break;
       case 'levelup': sound.levelUp(); break;
